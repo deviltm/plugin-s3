@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -8,13 +9,32 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var version = "0.0.0+0"
+var (
+	version = "0.0.0"
+	build   = "1"
+)
+
+// cherry-pick https://github.com/drone-plugins/drone-s3/commit/ecfe958e6520f37778ebf2828709b94b3e550453
+func loadEnvVar() {
+	fileName := os.Getenv("ENV_FILE")
+	if fileName == "" {
+		fileName = os.Getenv("PLUGIN_ENV_FILE")
+	}
+
+	if fileName != "" {
+		err := godotenv.Overload(fileName)
+		logrus.Info(fmt.Sprintf("Successfully loaded/overloaded environment variables from %s", fileName))
+		if err != nil {
+			logrus.Error(fmt.Sprintf("Error reading env file %s - %v", fileName, err))
+		}
+	}
+}
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "s3 plugin"
 	app.Usage = "s3 plugin"
-	app.Version = version
+	app.Version = fmt.Sprintf("%s+%s", version, build)
 	app.Action = run
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -136,15 +156,14 @@ func main() {
 		},
 	}
 
+	loadEnvVar()
+
 	if err := app.Run(os.Args); err != nil {
 		logrus.Fatal(err)
 	}
 }
 
 func run(c *cli.Context) error {
-	if c.String("env-file") != "" {
-		_ = godotenv.Load(c.String("env-file"))
-	}
 
 	plugin := Plugin{
 		Endpoint:              c.String("endpoint"),
